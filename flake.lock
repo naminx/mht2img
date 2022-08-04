@@ -1,0 +1,82 @@
+{
+  "nodes": {
+    "flake-parts": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1657102481,
+        "narHash": "sha256-62Fuw8JgPub38OdgNefkIKOodM9nC3M0AG6lS+7smf4=",
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "rev": "608ed3502263d6f4f886d75c48fc2b444a4ab8d8",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "type": "github"
+      }
+    },
+    "haskell-flake": {
+      "locked": {
+        "lastModified": 1654001497,
+        "narHash": "sha256-GfrpyoQrVT9Z/j9its8BQs3I5O5X5Lc2IkK922bz7zg=",
+        "owner": "srid",
+        "repo": "haskell-flake",
+        "rev": "4c0b0ff295f0b97238a600d2381c37ee46b67f9c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "srid",
+        "repo": "haskell-flake",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1659445012,
+        "narHash": "sha256-n8/7npmp3hLbPSTRHPW8EPO8qh9vJ10RgkRM3Ve4vfc=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "a9f66ae640146ac16b6e33d2359e9171b27b0993",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "nixos-22.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "purebred-email": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1654785473,
+        "narHash": "sha256-9MwKMmKRd22RNL789D9S/L7QK/M1RLkZd8TKoatUE7A=",
+        "owner": "divipp",
+        "repo": "purebred-email",
+        "rev": "a036d07bcd2ec0acdd677b34b060c21210a397df",
+        "type": "github"
+      },
+      "original": {
+        "owner": "divipp",
+        "repo": "purebred-email",
+        "rev": "a036d07bcd2ec0acdd677b34b060c21210a397df",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "flake-parts": "flake-parts",
+        "haskell-flake": "haskell-flake",
+        "nixpkgs": "nixpkgs",
+        "purebred-email": "purebred-email"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
