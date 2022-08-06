@@ -9,7 +9,7 @@
     flake-parts.inputs.nixpkgs.follows = "nixpkgs";
     haskell-flake.url = "github:srid/haskell-flake";
 
-    purebred-email.url = "github:divipp/purebred-email/a036d07bcd2ec0acdd677b34b060c21210a397df";
+    purebred-email.url = "github:purebred-mua/purebred-email/7ba346e10ad1521a923bc04a4ffeca479d8dd071";
     purebred-email.flake = false;
   };
 
@@ -34,9 +34,9 @@
             inherit (inputs)
               purebred-email;
           };
-          overrides = self: super: with pkgs.haskell.lib; {
-            purebred-email = dontCheck (doJailbreak super.purebred-email);
-          };
+          # overrides = self: super: with pkgs.haskell.lib; {
+          #   purebred-email = dontCheck (doJailbreak super.purebred-email);
+          # };
         };
       };
     };

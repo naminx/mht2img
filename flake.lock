@@ -37,11 +37,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1659445012,
-        "narHash": "sha256-n8/7npmp3hLbPSTRHPW8EPO8qh9vJ10RgkRM3Ve4vfc=",
+        "lastModified": 1659768833,
+        "narHash": "sha256-G1T3le1SfZ0AIsWu4SnWr46A34OEiwFcHDKWHtBfBtg=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "a9f66ae640146ac16b6e33d2359e9171b27b0993",
+        "rev": "72f492e275fc29d44b3a4daf952fbeffc4aed5b8",
         "type": "github"
       },
       "original": {
@@ -54,17 +54,17 @@
     "purebred-email": {
       "flake": false,
       "locked": {
-        "lastModified": 1654785473,
-        "narHash": "sha256-9MwKMmKRd22RNL789D9S/L7QK/M1RLkZd8TKoatUE7A=",
-        "owner": "divipp",
+        "lastModified": 1658230067,
+        "narHash": "sha256-fI+UEGEzz1OZr9bHK9hZqA9WUPlNOu+/iuuv2Yr3NEY=",
+        "owner": "purebred-mua",
         "repo": "purebred-email",
-        "rev": "a036d07bcd2ec0acdd677b34b060c21210a397df",
+        "rev": "7ba346e10ad1521a923bc04a4ffeca479d8dd071",
         "type": "github"
       },
       "original": {
-        "owner": "divipp",
+        "owner": "purebred-mua",
         "repo": "purebred-email",
-        "rev": "a036d07bcd2ec0acdd677b34b060c21210a397df",
+        "rev": "7ba346e10ad1521a923bc04a4ffeca479d8dd071",
         "type": "github"
       }
     },
