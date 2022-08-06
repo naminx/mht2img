@@ -45,7 +45,7 @@ executable mht2img
     , optparse-simple
     , path
     , pretty-simple
-    , purebred-email >= 5.1
+    , purebred-email
     , rio
     , text
     , tostring
