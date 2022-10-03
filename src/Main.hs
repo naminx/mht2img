@@ -19,7 +19,7 @@ main = do
     (options, ()) <-
         simpleOptions
             $(simpleVersion Paths_mht2img.version)
-            "Header for command line arguments"
+            "Header for command line arguments "
             "Program description, also for command line arguments"
             ( CliOptions
                 <$> switch
