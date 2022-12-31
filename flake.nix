@@ -1,49 +1,36 @@
 {
-  description = "scanweb";
-
-  nixConfig = {
-    bash-prompt = "\n\\[\\033[0;94m\\][\\[\\e]0;\\u@\\h: \\w\\a\\]\\u@\\h:\\w]\$\\[\\033[0m\\] ";
-  };
-
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    flake-parts = {
-      url = "github:hercules-ci/flake-parts";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
     haskell-flake.url = "github:srid/haskell-flake";
-
-    purebred-email = {
-      url = "github:purebred-mua/purebred-email/7ba346e10ad1521a923bc04a4ffeca479d8dd071";
-      flake = false;
-    };
   };
-
-  outputs = inputs@{ self, nixpkgs, flake-parts, haskell-flake, ... }:
+  outputs = inputs@{ self, nixpkgs, flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit self; } {
       systems = nixpkgs.lib.systems.flakeExposed;
-      imports = [
-        haskell-flake.flakeModule
-      ];
-      perSystem = { pkgs, inputs', self', ... }: {
+      imports = [ inputs.haskell-flake.flakeModule ];
+      perSystem = { self', pkgs, ... }: {
         haskellProjects.default = {
           haskellPackages = pkgs.haskell.packages.ghc924;
-          root = ./.;
-          name = "scanweb";
+          # packages = { 
+            # You can add more than one local package here.
+            # my-package.root = ./.;  # Assumes ./my-package.cabal
+          # };
+          # buildTools = hp: { fourmolu = hp.fourmolu; ghcid = null; };
           buildTools = hp: {
-            # inherit (pkgs)
-            #   neovim;
-            # inherit (hp)
-            #   fourmolu;
+            inherit (pkgs)
+              stack
+              lambdabot;
+            #   chromedriver
+            #   chromium;
+            inherit (hp)
+              fourmolu;
           };
-          source-overrides = {
-            inherit (inputs)
-              purebred-email;
-          };
-          overrides = self: super: with pkgs.haskell.lib; {
-            purebred-email = dontCheck (doJailbreak super.purebred-email);
-          };
+          # overrides = self: super: { };
+          # hlintCheck.enable = true;
+          # hlsCheck.enable = true;
         };
+        # haskell-flake doesn't set the default package, but you can do it here.
+        packages.default = self'.packages.mht2img;
       };
     };
 }

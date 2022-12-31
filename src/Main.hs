@@ -6,9 +6,9 @@ module Main (main) where
 
 import Control.Lens
 import Data.MIME
+import Data.Version
 import Import
 import Options.Applicative.Simple hiding (header)
-import qualified Paths_mht2img
 import qualified RIO.ByteString as BS
 import RIO.Process
 import Run
@@ -18,7 +18,7 @@ main :: IO ()
 main = do
     (options, ()) <-
         simpleOptions
-            $(simpleVersion Paths_mht2img.version)
+            $(simpleVersion $ makeVersion [0, 1, 0, 0])
             "Header for command line arguments "
             "Program description, also for command line arguments"
             ( CliOptions
