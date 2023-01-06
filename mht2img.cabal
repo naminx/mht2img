@@ -1,0 +1,51 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.35.0.
+--
+-- see: https://github.com/sol/hpack
+
+name:           mht2img
+version:        0.1.0.0
+description:    Please see the README on Github at <https://github.com/githubuser/mht2img#readme>
+homepage:       https://github.com/githubuser/mht2img#readme
+bug-reports:    https://github.com/githubuser/mht2img/issues
+author:         Author name here
+maintainer:     example@example.com
+copyright:      2022 Author name here
+license:        BSD3
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/githubuser/mht2img
+
+executable mht2img
+  main-is: Main.hs
+  other-modules:
+      Import
+      Lib
+      Lib.Lens
+      Lib.MIME
+      Lib.RIO
+      Lib.ToString
+      Run
+      Types
+      Util
+      Paths_mht2img
+  hs-source-dirs:
+      src
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+  build-depends:
+      Glob
+    , base >=4.11 && <10
+    , formatting
+    , lens
+    , modern-uri
+    , optparse-simple
+    , path
+    , pretty-simple
+    , purebred-email
+    , rio >=0.1.12.0
+    , text
+    , tostring
+  default-language: Haskell2010

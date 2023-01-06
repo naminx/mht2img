@@ -5,32 +5,24 @@
     haskell-flake.url = "github:srid/haskell-flake";
   };
   outputs = inputs@{ self, nixpkgs, flake-parts, ... }:
-    flake-parts.lib.mkFlake { inherit self; } {
+    flake-parts.lib.mkFlake { inherit inputs; } {
       systems = nixpkgs.lib.systems.flakeExposed;
       imports = [ inputs.haskell-flake.flakeModule ];
-      perSystem = { self', pkgs, ... }: {
+      perSystem = { config, self', inputs', pkgs, system, ... }: {
         haskellProjects.default = {
-          haskellPackages = pkgs.haskell.packages.ghc924;
-          # packages = { 
-            # You can add more than one local package here.
-            # my-package.root = ./.;  # Assumes ./my-package.cabal
-          # };
-          # buildTools = hp: { fourmolu = hp.fourmolu; ghcid = null; };
+          haskellPackages = pkgs.haskell.packages.ghc944;
           buildTools = hp: {
             inherit (pkgs)
+              lambdabot
               stack
-              lambdabot;
-            #   chromedriver
-            #   chromium;
+              zlib;
             inherit (hp)
               fourmolu;
           };
-          # overrides = self: super: { };
-          # hlintCheck.enable = true;
-          # hlsCheck.enable = true;
+          overrides = self: super: {
+            ghcid = pkgs.haskell.lib.dontCheck super.ghcid;
+          };
         };
-        # haskell-flake doesn't set the default package, but you can do it here.
-        packages.default = self'.packages.mht2img;
       };
     };
 }
