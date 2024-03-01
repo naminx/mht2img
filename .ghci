@@ -1,0 +1,74 @@
+-- green bold lambdas and multiline mode
+:set prompt "\ESC[0;33m%s\ESC[m\n\ESC[0;34m\x03BB>\ESC[m "
+:set prompt-cont "\ESC[0;33m%s\ESC[m\n\ESC[0;34m\x03BB>\ESC[m "
+
+-- useful flags
+:set +m
+:set +t
+
+-- useful extensions by default
+:set -XBangPatterns
+:set -XBinaryLiterals
+:set -XConstraintKinds
+:set -XDataKinds
+:set -XDefaultSignatures
+:set -XDeriveDataTypeable
+:set -XDeriveFoldable
+:set -XDeriveFunctor
+:set -XDeriveGeneric
+:set -XDeriveTraversable
+:set -XDoAndIfThenElse
+:set -XEmptyDataDecls
+:set -XExistentialQuantification
+:set -XFlexibleContexts
+:set -XFlexibleInstances
+:set -XFunctionalDependencies
+:set -XGADTs
+:set -XGeneralizedNewtypeDeriving
+:set -XInstanceSigs
+:set -XKindSignatures
+:set -XLambdaCase
+:set -XMultiParamTypeClasses
+:set -XMultiWayIf
+:set -XNamedFieldPuns
+:set -XNoImplicitPrelude
+:set -XOverloadedStrings
+:set -XPartialTypeSignatures
+:set -XPatternGuards
+:set -XPolyKinds
+:set -XQuasiQuotes
+:set -XRankNTypes
+:set -XRecordWildCards
+:set -XScopedTypeVariables
+:set -XStandaloneDeriving
+:set -XTemplateHaskell
+:set -XTupleSections
+:set -XTypeFamilies
+:set -XTypeSynonymInstances
+:set -XViewPatterns
+
+:set -Wall
+:set -Wcompat
+:set -Widentities
+:set -Wincomplete-record-updates
+:set -Wincomplete-uni-patterns
+:set -Wpartial-fields
+:set -Wredundant-constraints
+:set -Wno-type-defaults
+:set -fdiagnostics-color=always
+
+-- useful default imports
+-- import Data.Kind (Type, Constraint)
+import RIO hiding (ASetter, ASetter', Getting, Lens, Lens', SimpleGetter, lens, over, preview, set, sets, to, view, (%~), (.~), (^.), (^..), (^?))
+
+-- helpful macros
+:def package \m -> pure $ ":! ghc-pkg --simple-output find-module " ++ m
+:def rr \_ -> pure ":script .ghci"
+
+-- Colorizing and pretty-printing ghci output
+-- requires: pretty-simple
+:def pretty \_ -> pure ":set -interactive-print=Text.Pretty.Simple.pPrint"
+:def no-pretty \_ -> pure ":set -interactive-print=System.IO.print"
+:pretty
+
+:set editor vi
