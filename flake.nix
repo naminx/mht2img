@@ -22,6 +22,7 @@
         pkgs,
         ...
       }: {
+        packages.default = self'.packages.mht2img;
         haskellProjects.default = {
           # basePackages = pkgs.haskellPackages;
 
