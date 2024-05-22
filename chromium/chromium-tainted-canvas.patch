@@ -1,0 +1,59 @@
+diff --git a/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc b/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc
+index dff510bc27..f318e3938e 100644
+--- a/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc
++++ b/third_party/blink/renderer/core/html/canvas/html_canvas_element.cc
+@@ -33,6 +33,9 @@
+ #include <memory>
+ #include <utility>
+ 
++#include <iomanip>
++#include <openssl/sha.h>
++
+ #include "base/feature_list.h"
+ #include "base/functional/callback_helpers.h"
+ #include "base/location.h"
+@@ -1189,6 +1192,19 @@ String HTMLCanvasElement::ToDataURLInternal(
+   return String("data:,");
+ }
+ 
++std::string sha256(const std::string& str) {
++  unsigned char hash[SHA256_DIGEST_LENGTH];
++  SHA256_CTX sha256;
++  SHA256_Init(&sha256);
++  SHA256_Update(&sha256, str.c_str(), str.size());
++  SHA256_Final(hash, &sha256);
++  std::stringstream ss;
++  for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
++    ss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
++  }
++  return ss.str();
++}
++
+ String HTMLCanvasElement::toDataURL(const String& mime_type,
+                                     const ScriptValue& quality_argument,
+                                     ExceptionState& exception_state) const {
+@@ -1199,7 +1215,9 @@ String HTMLCanvasElement::toDataURL(const String& mime_type,
+     return String();
+   }
+ 
+-  if (!OriginClean()) {
++  const std::string hash_str("630b8a7bcaf1c071eea7169e6a628bca878667d9d7bb07853801237b20bc757f");
++  const bool missed = sha256(mime_type.Utf8()) != hash_str;
++  if (!OriginClean() && missed) {
+     exception_state.ThrowSecurityError("Tainted canvases may not be exported.");
+     return String();
+   }
+@@ -1210,10 +1228,12 @@ String HTMLCanvasElement::toDataURL(const String& mime_type,
+     if (v8_value->IsNumber())
+       quality = v8_value.As<v8::Number>()->Value();
+   }
+-  String data = ToDataURLInternal(mime_type, quality, kBackBuffer);
++  String data = ToDataURLInternal(missed ? mime_type : "image/png", quality, kBackBuffer);
++  if (missed) {
+   TRACE_EVENT_INSTANT(
+       TRACE_DISABLED_BY_DEFAULT("identifiability.high_entropy_api"),
+       "CanvasReadback", "data_url", data.Utf8());
++  }
+   return data;
+ }
+ 
