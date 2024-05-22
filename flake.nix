@@ -52,7 +52,6 @@
           nativeBuildInputs = with pkgs; [
             # other development tools.
             # (import ./vim.nix {inherit pkgs;})
-            (pkgs.callPackage ./chromium/default.nix {})
           ];
         };
       };
