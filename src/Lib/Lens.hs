@@ -15,12 +15,9 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Lib.RIO (
-    module Control.Lens,
-    module RIO,
-) where
+module Lib.Lens where
 
-import Control.Lens
+import Control.Lens (Prism', prism', review, (^?))
 import RIO hiding (
     ASetter,
     ASetter',
@@ -29,12 +26,10 @@ import RIO hiding (
     Lens',
     SimpleGetter,
     lens,
-    many,
     over,
     preview,
     set,
     sets,
-    some,
     to,
     view,
     (%~),
@@ -43,8 +38,10 @@ import RIO hiding (
     (^..),
     (^?),
  )
-import qualified RIO.Text as T
 
 
-instance Display String where
-    display = display . T.pack
+prismProduct :: Prism' s a -> Prism' s b -> Prism' s (a, b)
+prismProduct pa pb =
+    prism'
+        (\(a, _) -> review pa a)
+        (\s -> (,) <$> s ^? pa <*> s ^? pb)

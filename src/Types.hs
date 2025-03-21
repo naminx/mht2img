@@ -13,29 +13,31 @@ import System.Path
 
 -- | Command line arguments
 data CliOptions = CliOptions
-  { _verbose :: !Bool
-  , _imageTypes :: ![Text]
-  , _mhtFiles :: !AbsRelFile
-  }
+    { _verbose :: !Bool
+    , _imageTypes :: ![Text]
+    , _minWidth :: !Int
+    , _minHeight :: !Int
+    , _mhtFiles :: !AbsRelFile
+    }
 
 
 makeFieldsNoPrefix ''CliOptions
 
 
 data AppEnv = AppEnv
-  { _logFunc :: !LogFunc
-  , _processContext :: !ProcessContext
-  , _cliOptions :: !CliOptions
-  -- Add other app-specific configuration information here
-  }
+    { _logFunc :: !LogFunc
+    , _processContext :: !ProcessContext
+    , _cliOptions :: !CliOptions
+    -- Add other app-specific configuration information here
+    }
 
 
 makeClassy ''AppEnv
 
 
 instance HasLogFunc AppEnv where
-  logFuncL = logFunc
+    logFuncL = logFunc
 
 
 instance HasProcessContext AppEnv where
-  processContextL = processContext
+    processContextL = processContext

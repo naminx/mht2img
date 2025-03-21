@@ -24,6 +24,8 @@ executable mht2img
   other-modules:
       Import
       Lib
+      Lib.Image
+      Lib.Lens
       Lib.MIME
       Lib.RIO
       Run
@@ -36,6 +38,7 @@ executable mht2img
       attoparsec
     , base
     , base-unicode-symbols
+    , binary
     , case-insensitive
     , formatting
     , lens

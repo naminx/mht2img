@@ -19,7 +19,7 @@ makePrisms ''MIME
 
 
 instance Plated MIMEMessage where
-  plate = body . _Multipart . _3 . each
+    plate = body . _Multipart . _3 . each
 
 
 flatten :: Fold MIMEMessage MIMEMessage

@@ -7,6 +7,12 @@
 
     taggy-lens.url = "github:alpmestan/taggy-lens?rev=87235bfb9c3ee8b3d487c1cf48a22f247e59286d";
     taggy-lens.flake = false;
+
+    image-type.url = "github:naminx/image-type?rev=41fa3732ed55b65a1067377f9cc95606cc44f97c";
+    image-type.flake = false;
+
+    webp.url = "github:naminx/webp?rev=cd5b4a37f16b0205fdf8f6ab1040843a9cd394fc";
+    webp.flake = false;
   };
 
   outputs = inputs @ {nixpkgs, ...}:
@@ -27,6 +33,8 @@
           packages = {
             # aeson.source = "1.5.0.0" # Hackage version
             taggy-lens.source = inputs.taggy-lens;
+            image-type.source = inputs.image-type;
+            webp.source = inputs.webp;
           };
 
           # my-haskell-package development shell configuration
