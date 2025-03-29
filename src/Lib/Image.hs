@@ -14,6 +14,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Lib.Image {- (
@@ -22,7 +24,7 @@ module Lib.Image {- (
                  ) -}
 where
 
-import Control.Lens (Prism', prism')
+import Control.Lens (Prism', prism', makeFieldsNoPrefix)
 import Data.Binary.Get
 import Data.Bits (shiftL, shiftR, (.&.), (.|.))
 import RIO hiding (ASetter, ASetter', Getting, Lens, Lens', SimpleGetter, lens, over, preview, set, sets, to, view, (%~), (.~), (^.), (^..), (^?))
@@ -33,6 +35,18 @@ import qualified RIO.ByteString.Lazy as BL
 -- | Supported image formats
 data ImageFormat = JPG | PNG | GIF | WEBP | AVIF | ICO
     deriving (Show, Eq)
+
+
+data ImageInfoData = ImageInfoData
+    { _imgType :: ImageFormat
+    , _imgWidth :: Int
+    , _imgHeight :: Int
+    , _imgSrc :: Text
+    , _imgData :: ByteString
+    }
+
+
+makeFieldsNoPrefix ''ImageInfoData
 
 
 -- | Prism for extracting image dimensions

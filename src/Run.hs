@@ -16,6 +16,7 @@ import Data.MIME
 import Data.MIME.Base64
 import Data.MIME.TransferEncoding
 import Data.String.Conversions
+import Data.Tuple.Extra (uncurry3)
 import Formatting (format, (%))
 import Formatting.Combinators (lpadded)
 import Formatting.Formatters (int, text)
@@ -36,10 +37,13 @@ run = do
     targetFile <- view $ cliOptions . mhtFiles
     imgTypes <- view $ cliOptions . imageTypes
     rawData <- BS.readFile $ toString targetFile
-    itraverse_ writeImage
-        $ concatMap (either (pure . Left) (map Right))
-        $ rawData
-        ^.. allImages imgTypes
+    minW <- view $ cliOptions . minWidth
+    minH <- view $ cliOptions . minHeight
+    itraverse_ writeImageData
+        $ concatMap (filter (filterBySize minW minH)
+            . mapMaybe imageBS
+            . either (pure . Left) (map Right))
+        $ rawData ^.. allImages imgTypes
   where
     allImages imgTypes =
         parsedMIME . flatten . to (filterImg imgTypes) . _Just
@@ -91,6 +95,11 @@ run = do
             return ()
 
 
+filterBySize :: Int -> Int -> ImageInfoData -> Bool
+filterBySize minW minH (ImageInfoData _ imgW imgH _ _) =
+  imgW >= minW && imgH >= minH
+
+
 imgBase64Parser :: Parser (ContentType, ByteString)
 imgBase64Parser = do
     _ <- string "data:"
@@ -100,100 +109,49 @@ imgBase64Parser = do
     return (ct, dat)
 
 
-writeImage :: Int -> Either MIMEMessage Element -> RIO AppEnv ()
-writeImage n img = case img of
-    Left msg -> writeMimeMsgImg n msg
-    Right elemt -> writeDataUrlImage n elemt
-
-
-writeDataUrlImage :: Int -> Element -> RIO AppEnv ()
-writeDataUrlImage n elemt = do
-    minW <- view $ cliOptions . minWidth
-    minH <- view $ cliOptions . minHeight
-    case bs ^? _Just . imgDim of
-        Just (imgType, w, h) -> when (w >= minW && h >= minH) $ do
-            logInfo $ display outName
-            traverse_ (BS.writeFile outName) bs
-          where
-            outName = outputFile imgType
-        _ -> return ()
+writeImageData :: Int -> ImageInfoData -> RIO AppEnv ()
+writeImageData n (ImageInfoData imType _ _ src bs) = do
+    logInfo $ display outputFile
+    BS.writeFile outputFile bs
   where
-    bs = img ^? _Just . _2 . clonePrism contentTransferEncodingBase64
-    img = elemt ^? attr "src" . _Just . decodeDataUrl
-    decodeDataUrl = to (cs :: Text -> ByteString) . parsed imgBase64Parser
-    --  fileExt = foldedCase $ img ^. _Just . _1 . ctSubtype . to jpegToJpg
-    outputFile imgType = cs $ format spec (n + 1) $ cs $ toLower <$> show imgType
+    outputFile = if src == ""
+      then cs $ format spec (n + 1) $ cs $ toLower <$> show imType
+      else cs $ format spec2 (n + 1) (cs src) $ cs $ toLower <$> show imType
     spec = lpadded 3 '0' int % "." % text
+    spec2 = lpadded 3 '0' int % "-" % text % "." % text
 
 
-writeMimeMsgImg :: Int -> MIMEMessage -> RIO AppEnv ()
-writeMimeMsgImg n msg = do
-    minW <- view $ cliOptions . minWidth
-    minH <- view $ cliOptions . minHeight
-    -- traverse_ (logInfo . display) $ msg ^? outputFileF . to toString
-    -- sequenceA_ $ msg ^? writeImageFile
-    case bs ^? _Just . imgDim of
-        Just (imgType, w, h) -> when (w >= minW && h >= minH) $ do
-            logInfo $ display outName
-            traverse_ (BS.writeFile outName) bs
-          where
-            outName = outputFile imgType
-        _ -> return ()
+imageBS :: Either MIMEMessage Element -> Maybe ImageInfoData
+imageBS img = bs >>= preview imgDim >>= uncurry3 imageInfo
   where
-    bs = msg ^? entities . transferDecodedBytes . _right
-    -- To satisfy `AsTransferEncodingError e => ... (Either e ByteString)`
+    bs = either bsFromMsg bsFromElem img
+    src = either srcFromMsg srcFromElem img
+    imageInfo t w h = ImageInfoData t w h src <$> bs
+
+
+bsFromMsg :: MIMEMessage -> Maybe ByteString
+bsFromMsg msg =
+    msg ^? entities . transferDecodedBytes . _right
+  where
     _right = _Right :: Prism' (Either EncodingError ByteString) ByteString
-    outputFile imgType = cs $ format spec (n + 1) $ cs $ toLower <$> show imgType
-    spec = lpadded 3 '0' int % "." % text
 
-    {- writeImageFile :: Fold MIMEMessage (RIO AppEnv ())
-    writeImageFile =
-        runFold
-            $ BS.writeFile
-            <$> Fold (outputFile . to toString)
-            <*> Fold rawData
 
-    outputFileF :: Fold MIMEMessage RelFile
-    outputFileF = runFold $ mkOutputFileName <$> Fold fileBase <*> Fold fileExt
+bsFromElem :: Element -> Maybe ByteString
+bsFromElem elm =
+    img ^? _Just . _2 . clonePrism contentTransferEncodingBase64
+  where
+    img = elm ^? attr "src" . _Just . cs' . parsed imgBase64Parser
+    cs' = to (cs :: Text -> ByteString)
 
-    rawData :: Fold MIMEMessage ByteString
-    rawData =
-        entities
-            . transferDecodedBytes
-            -- Type annotation is needed to satisfy
-            -- `AsTransferEncodingError e => ... (Either e ByteString)`
-            -- in the type annotation for `transferDecodedBytes`
-            -- although it is discarded with `_Right`.
-            . (_Right :: Prism' (Either EncodingError ByteString) ByteString)
 
-    mkOutputFileName :: RelFile -> String -> RelFile
-    mkOutputFileName =
-        addExtension . mapFileName (cs (format counter (n + 1)) <>)
-      where
-        counter = lpadded 3 '0' int % "-"
+srcFromMsg :: MIMEMessage -> Text
+srcFromMsg msg =
+    msg ^. fileFull . to (takeBaseName ⋙ toString ⋙ cs)
 
-    fileExt :: Getter MIMEMessage String
-    fileExt =
-        contentType
-            . ctSubtype
-            . to (foldedCase ⋙ jpegToJpg ⋙ cs) -}
 
-    {--
-    case bs ^? _Just . imgDim of
-        Just (imgType, w, h) -> when (w >= minW && h >= minH) $ do
-            logInfo $ display outName
-            traverse_ (BS.writeFile outName) bs
-          where
-            outName = outputFile imgType
-        _ -> return ()
-
-    img = elemt ^? attr "src" . _Just . decodeDataUrl
-    decodeDataUrl = to (cs :: Text -> ByteString) . parsed imgBase64Parser
-    --  fileExt = foldedCase $ img ^. _Just . _1 . ctSubtype . to jpegToJpg
-    outputFile imgType = cs $ format spec (n + 1) $ cs $ toLower <$> show imgType
-    spec = lpadded 3 '0' int % "." % text
-    bs = img ^? _Just . _2 . clonePrism contentTransferEncodingBase64
---}
+-- Mainly <img> captured from <camvas>, thus no src name
+srcFromElem :: Element -> Text
+srcFromElem _ = ""
 
 
 fileFull :: Fold MIMEMessage RelFile

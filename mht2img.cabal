@@ -40,6 +40,7 @@ executable mht2img
     , base-unicode-symbols
     , binary
     , case-insensitive
+    , extra
     , formatting
     , lens
     , modern-uri
