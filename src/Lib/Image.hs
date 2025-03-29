@@ -6,7 +6,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE PolyKinds #-}
@@ -18,10 +17,16 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Lib.Image {- (
-                     ImageFormat (..),
-                     imgDim,
-                 ) -}
+module Lib.Image (
+    ImageInfoData (..),
+    ImageFormat (..),
+    imgDim,
+    HasImgType (..),
+    HasImgWidth (..),
+    HasImgHeight (..),
+    HasImgSrc (..),
+    HasImgData (..),
+)
 where
 
 import Control.Lens (Prism', prism', makeFieldsNoPrefix)
@@ -33,7 +38,7 @@ import qualified RIO.ByteString.Lazy as BL
 
 
 -- | Supported image formats
-data ImageFormat = JPG | PNG | GIF | WEBP | AVIF | ICO
+data ImageFormat = AVIF | GIF | ICO | JPG | PNG | WEBP
     deriving (Show, Eq)
 
 
@@ -54,31 +59,22 @@ imgDim :: Prism' ByteString (ImageFormat, Int, Int)
 imgDim = prism' encodeDimensions extractDimensions
   where
     extractDimensions bs =
-        detectPng bs <|> detectJpeg bs <|> detectGif bs <|> detectWebp bs <|> detectAvif bs <|> detectIco bs
+        detectAvif bs <|> detectGif bs <|> detectIco bs <|> detectJpg bs <|> detectPng bs <|> detectWebp bs
 
     -- Placeholder implementation since we can't meaningfully create an image
     encodeDimensions _ = BS.empty
 
 
--- | Extract dimensions from a PNG image
-detectPng :: ByteString -> Maybe (ImageFormat, Int, Int)
-detectPng bs
-    | not (BS.isPrefixOf "\137PNG\r\n\26\n" bs) = Nothing
+-- | Extract dimensions from an AVIF image by recursively searching for the ISPE box
+detectAvif :: ByteString -> Maybe (ImageFormat, Int, Int)
+detectAvif bs
+    | not (BS.isInfixOf "ftypavif" (BS.take 32 bs)) = Nothing
     | otherwise =
-        case runGetOrFail parsePng (BL.fromStrict bs) of
-            Left _ -> Nothing
-            Right (_, _, (w, h)) -> Just (PNG, w, h)
-  where
-    parsePng = do
-        skip 8 -- Skip signature
-        skip 4 -- Skip chunk length
-        chunkType <- getByteString 4
-        if chunkType /= "IHDR"
-            then fail "Not an IHDR chunk"
-            else do
-                width <- getWord32be
-                height <- getWord32be
-                return (fromIntegral width, fromIntegral height)
+        -- Use a larger buffer to ensure we can find deeply nested boxes
+        let limitedBs = BS.take 32768 bs -- 32KB should be enough for metadata
+         in case findISPERecursively limitedBs 0 100 of
+                Just (width, height) -> Just (AVIF, width, height)
+                Nothing -> Nothing
 
 
 -- | Extract dimensions from a GIF image
@@ -111,97 +107,9 @@ detectIco bs
         return (ICO, width, height)
 
 
--- | Extract width and height from a WebP image
--- Returns Nothing if the ByteString is not a valid WebP image
--- or if the dimensions cannot be determined
-detectWebp :: ByteString -> Maybe (ImageFormat, Int, Int)
-detectWebp bs
-    | BS.length bs < 12 = Nothing -- Not enough bytes for basic header
-    | not (BS.isPrefixOf "RIFF" bs && BS.isPrefixOf "WEBP" (BS.drop 8 bs)) = Nothing -- Not a WebP file
-    | otherwise =
-        let vp8Type = BS.take 4 (BS.drop 12 bs)
-         in case vp8Type of
-                "VP8 " -> getVP8Dimensions (BS.drop 20 bs) -- Skip to VP8 data
-                "VP8L" -> getVP8LDimensions (BS.drop 20 bs) -- Skip to VP8L data
-                "VP8X" -> getVP8XDimensions bs -- VP8X dimensions are at fixed locations
-                _ -> Nothing -- Unknown VP8 type
-
-
--- | Extract dimensions from VP8 data (lossy format)
-getVP8Dimensions :: ByteString -> Maybe (ImageFormat, Int, Int)
-getVP8Dimensions bs
-    | BS.length bs < 10 = Nothing -- VP8 frame header is 10 bytes
-    | otherwise =
-        let
-            -- Check for VP8 signature
-            b0 = fromIntegral $ BS.index bs 0
-            b1 = fromIntegral $ BS.index bs 1
-            b2 = fromIntegral $ BS.index bs 2
-         in
-            if (b0, b1, b2) == (0x9d, 0x01, 0x2a) -- VP8 signature
-                then
-                    let
-                        -- Extract width and height (16-bit values at bytes 6-9)
-                        width =
-                            fromIntegral (BS.index bs 6)
-                                .|. (fromIntegral (BS.index bs 7) `shiftL` 8)
-                        height =
-                            fromIntegral (BS.index bs 8)
-                                .|. (fromIntegral (BS.index bs 9) `shiftL` 8)
-                     in
-                        Just (WEBP, width .&. 0x3fff, height .&. 0x3fff) -- Mask with 0x3fff (14 bits)
-                else Nothing
-
-
--- | Extract dimensions from VP8L data (lossless format)
-getVP8LDimensions :: ByteString -> Maybe (ImageFormat, Int, Int)
-getVP8LDimensions bs
-    | BS.length bs < 5 = Nothing -- VP8L frame header is 5 bytes
-    | otherwise =
-        let signature = BS.index bs 0
-         in if signature == 0x2f -- VP8L signature (magic byte)
-                then
-                    let
-                        -- Width and height are encoded in the 4 bytes after signature
-                        b0 = fromIntegral $ BS.index bs 1
-                        b1 = fromIntegral $ BS.index bs 2
-                        b2 = fromIntegral $ BS.index bs 3
-                        b3 = fromIntegral $ BS.index bs 4
-                        -- Extract width and height using bit manipulation
-                        width = 1 + (((b1 .&. 0x3F) `shiftL` 8) .|. b0)
-                        height =
-                            1
-                                + ( ((b3 .&. 0xF) `shiftL` 10)
-                                        .|. (b2 `shiftL` 2)
-                                        .|. ((b1 .&. 0xC0) `shiftR` 6)
-                                  )
-                     in
-                        Just (WEBP, width, height)
-                else Nothing
-
-
--- | Extract dimensions from VP8X extended data
-getVP8XDimensions :: ByteString -> Maybe (ImageFormat, Int, Int)
-getVP8XDimensions bs
-    | BS.length bs < 30 = Nothing -- Need at least 30 bytes for VP8X
-    | otherwise =
-        let
-            -- Width is at bytes 24-26, height at bytes 27-29 (24-bit values)
-            width =
-                fromIntegral (BS.index bs 24)
-                    .|. (fromIntegral (BS.index bs 25) `shiftL` 8)
-                    .|. (fromIntegral (BS.index bs 26) `shiftL` 16)
-            height =
-                fromIntegral (BS.index bs 27)
-                    .|. (fromIntegral (BS.index bs 28) `shiftL` 8)
-                    .|. (fromIntegral (BS.index bs 29) `shiftL` 16)
-         in
-            Just (WEBP, width + 1, height + 1) -- Adding 1 based on format specification
-
-
 -- | Extract dimensions from a JPEG image
-detectJpeg :: ByteString -> Maybe (ImageFormat, Int, Int)
-detectJpeg bs'
+detectJpg :: ByteString -> Maybe (ImageFormat, Int, Int)
+detectJpg bs'
     | BS.length bs' < 2 = Nothing
     | not (BS.isPrefixOf "\xFF\xD8" bs') = Nothing -- JPEG signature (SOI marker)'
     | otherwise = findSOF bs' 2
@@ -233,26 +141,41 @@ detectJpeg bs'
                             else Nothing
 
 
--- \| Read a big-endian 16-bit unsigned integer
-readUInt16BE :: ByteString -> Int -> Word16
-readUInt16BE bs offset
-    | offset + 1 >= BS.length bs = 0
+-- | Extract dimensions from a PNG image
+detectPng :: ByteString -> Maybe (ImageFormat, Int, Int)
+detectPng bs
+    | not (BS.isPrefixOf "\137PNG\r\n\26\n" bs) = Nothing
     | otherwise =
-        let b0 = fromIntegral (BS.index bs offset)
-            b1 = fromIntegral (BS.index bs (offset + 1))
-         in (b0 `shiftL` 8) .|. b1
+        case runGetOrFail parsePng (BL.fromStrict bs) of
+            Left _ -> Nothing
+            Right (_, _, (w, h)) -> Just (PNG, w, h)
+  where
+    parsePng = do
+        skip 8 -- Skip signature
+        skip 4 -- Skip chunk length
+        chunkType <- getByteString 4
+        if chunkType /= "IHDR"
+            then fail "Not an IHDR chunk"
+            else do
+                width <- getWord32be
+                height <- getWord32be
+                return (fromIntegral width, fromIntegral height)
 
 
--- | Extract dimensions from an AVIF image by recursively searching for the ISPE box
-detectAvif :: ByteString -> Maybe (ImageFormat, Int, Int)
-detectAvif bs
-    | not (BS.isInfixOf "ftypavif" (BS.take 32 bs)) = Nothing
+-- | Extract width and height from a WebP image
+-- Returns Nothing if the ByteString is not a valid WebP image
+-- or if the dimensions cannot be determined
+detectWebp :: ByteString -> Maybe (ImageFormat, Int, Int)
+detectWebp bs
+    | BS.length bs < 12 = Nothing -- Not enough bytes for basic header
+    | not (BS.isPrefixOf "RIFF" bs && BS.isPrefixOf "WEBP" (BS.drop 8 bs)) = Nothing -- Not a WebP file
     | otherwise =
-        -- Use a larger buffer to ensure we can find deeply nested boxes
-        let limitedBs = BS.take 32768 bs -- 32KB should be enough for metadata
-         in case findISPERecursively limitedBs 0 100 of
-                Just (width, height) -> Just (AVIF, width, height)
-                Nothing -> Nothing
+        let vp8Type = BS.take 4 (BS.drop 12 bs)
+         in case vp8Type of
+                "VP8 " -> getVP8Dimensions (BS.drop 20 bs) -- Skip to VP8 data
+                "VP8L" -> getVP8LDimensions (BS.drop 20 bs) -- Skip to VP8L data
+                "VP8X" -> getVP8XDimensions bs -- VP8X dimensions are at fixed locations
+                _ -> Nothing -- Unknown VP8 type
 
 
 -- | Recursively find the ISPE box anywhere in the box hierarchy
@@ -339,6 +262,88 @@ findISPEInContainer bs offset containerEnd depth
                                                     findISPEInContainer bs nextOffset containerEnd (depth - 1)
                                     else -- Not a container box, skip to next box at same level
                                         findISPEInContainer bs nextOffset containerEnd (depth - 1)
+
+
+-- | Extract dimensions from VP8 data (lossy format)
+getVP8Dimensions :: ByteString -> Maybe (ImageFormat, Int, Int)
+getVP8Dimensions bs
+    | BS.length bs < 10 = Nothing -- VP8 frame header is 10 bytes
+    | otherwise =
+        let
+            -- Check for VP8 signature
+            b0 = fromIntegral $ BS.index bs 0 :: Int
+            b1 = fromIntegral $ BS.index bs 1 :: Int
+            b2 = fromIntegral $ BS.index bs 2 :: Int
+         in
+            if (b0, b1, b2) == (0x9d, 0x01, 0x2a) -- VP8 signature
+                then
+                    let
+                        -- Extract width and height (16-bit values at bytes 6-9)
+                        width =
+                            fromIntegral (BS.index bs 6)
+                                .|. (fromIntegral (BS.index bs 7) `shiftL` 8)
+                        height =
+                            fromIntegral (BS.index bs 8)
+                                .|. (fromIntegral (BS.index bs 9) `shiftL` 8)
+                     in
+                        Just (WEBP, width .&. 0x3fff, height .&. 0x3fff) -- Mask with 0x3fff (14 bits)
+                else Nothing
+
+
+-- | Extract dimensions from VP8L data (lossless format)
+getVP8LDimensions :: ByteString -> Maybe (ImageFormat, Int, Int)
+getVP8LDimensions bs
+    | BS.length bs < 5 = Nothing -- VP8L frame header is 5 bytes
+    | otherwise =
+        let signature = BS.index bs 0
+         in if signature == 0x2f -- VP8L signature (magic byte)
+                then
+                    let
+                        -- Width and height are encoded in the 4 bytes after signature
+                        b0 = fromIntegral $ BS.index bs 1
+                        b1 = fromIntegral $ BS.index bs 2
+                        b2 = fromIntegral $ BS.index bs 3
+                        b3 = fromIntegral $ BS.index bs 4
+                        -- Extract width and height using bit manipulation
+                        width = 1 + (((b1 .&. 0x3F) `shiftL` 8) .|. b0)
+                        height =
+                            1
+                                + ( ((b3 .&. 0xF) `shiftL` 10)
+                                        .|. (b2 `shiftL` 2)
+                                        .|. ((b1 .&. 0xC0) `shiftR` 6)
+                                  )
+                     in
+                        Just (WEBP, width, height)
+                else Nothing
+
+
+-- | Extract dimensions from VP8X extended data
+getVP8XDimensions :: ByteString -> Maybe (ImageFormat, Int, Int)
+getVP8XDimensions bs
+    | BS.length bs < 30 = Nothing -- Need at least 30 bytes for VP8X
+    | otherwise =
+        let
+            -- Width is at bytes 24-26, height at bytes 27-29 (24-bit values)
+            width =
+                fromIntegral (BS.index bs 24)
+                    .|. (fromIntegral (BS.index bs 25) `shiftL` 8)
+                    .|. (fromIntegral (BS.index bs 26) `shiftL` 16)
+            height =
+                fromIntegral (BS.index bs 27)
+                    .|. (fromIntegral (BS.index bs 28) `shiftL` 8)
+                    .|. (fromIntegral (BS.index bs 29) `shiftL` 16)
+         in
+            Just (WEBP, width + 1, height + 1) -- Adding 1 based on format specification
+
+
+-- \| Read a big-endian 16-bit unsigned integer
+readUInt16BE :: ByteString -> Int -> Word16
+readUInt16BE bs offset
+    | offset + 1 >= BS.length bs = 0
+    | otherwise =
+        let b0 = fromIntegral (BS.index bs offset)
+            b1 = fromIntegral (BS.index bs (offset + 1))
+         in (b0 `shiftL` 8) .|. b1
 
 
 -- | Read a big-endian 32-bit unsigned integer

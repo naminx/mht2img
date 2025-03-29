@@ -25,7 +25,7 @@ main :: IO ()
 main = do
     (options, ()) <-
         simpleOptions
-            $(simpleVersion $ makeVersion [0, 1, 0, 0])
+            $(simpleVersion $ makeVersion [1, 1, 0, 0])
             "Header for command line arguments "
             "Program description, also for command line arguments"
             ( CliOptions
